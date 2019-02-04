@@ -217,6 +217,13 @@ module.exports = function(
   // Change displayed command to yarn instead of yarnpkg
   const displayedCommand = useYarn ? 'yarn' : 'npm';
 
+  // Alchemy custom initialization
+  console.log();
+  console.log('Running custom initialization.');
+  console.log();
+  const customInit = require('./custom-init');
+  customInit(appPath);
+
   console.log();
   console.log(`Success! Created ${appName} at ${appPath}`);
   console.log('Inside that directory, you can run several commands:');
