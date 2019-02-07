@@ -1,0 +1,114 @@
+Parameters:
+  BucketName:
+    Description: S3 Bucket name to hold your application files
+    Type: String
+  RedirectFrom:
+    Description: (Optional) Another bucket from which to redirect requests to the main bucket
+    Type: String
+    Default: ''
+  UseCloudFront:
+    Description: (Optional. Default false) Flag to set up CloudFront for S3 Static Websites.
+    Type: String
+    Default: 'false'
+    AllowedValues:
+    - 'true'
+    - 'false'
+
+Conditions:
+  RedirectFrom: !Not [!Equals [!Ref RedirectFrom, '']]
+  UseCloudFront: !Equals [!Ref UseCloudFront, 'true']
+  RedirectUseCloudFront: !And [Condition: RedirectFrom, Condition: UseCloudFront]
+
+Resources:
+  # RedirectFromBucket. Redirects to WebsiteBucket
+  # Only created if Condition: RedirectFrom
+  RedirectFromBucket:
+    Condition: RedirectFrom
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Ref RedirectFrom
+      WebsiteConfiguration:
+        RedirectAllRequestsTo:
+          HostName: !Ref WebsiteBucket
+  # CloudFront Distribution to forward traffic to RedirectFromBucket
+  # Only created if Condition: RedirectFrom
+  RedirectFromDistribution:
+    Condition: RedirectUseCloudFront
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Origins:
+        - DomainName: !Select ["1", !Split ["http://", !GetAtt [RedirectFromBucket, WebsiteURL]]]
+          Id: RedirectFrom
+          CustomOriginConfig:
+            OriginProtocolPolicy: http-only
+        Enabled: 'true'
+        DefaultCacheBehavior:
+          AllowedMethods:
+          - GET
+          - HEAD
+          - OPTIONS
+          TargetOriginId: RedirectFrom
+          ForwardedValues:
+            QueryString: 'true'
+            Cookies:
+              Forward: all
+          ViewerProtocolPolicy: redirect-to-https
+
+  # WebsiteBucket to hold the web app files
+  WebsiteBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      AccessControl: PublicRead
+      BucketName: !Ref BucketName
+      AccessControl: BucketOwnerFullControl
+      WebsiteConfiguration:
+        IndexDocument: index.html
+        ErrorDocument: index.html
+  # Public Read Access is required for S3 websites
+  WebsiteBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      PolicyDocument:
+        Id: MyPolicy
+        Version: 2012-10-17
+        Statement:
+          - Sid: PublicReadForGetBucketObjects
+            Effect: Allow
+            Principal: '*'
+            Action: 's3:GetObject'
+            Resource: !Join
+              - ''
+              - - 'arn:aws:s3:::'
+                - !Ref WebsiteBucket
+                - /*
+      Bucket: !Ref WebsiteBucket
+  # CloudFront Distribution to forward traffic to WebsiteBucket
+  CFDistribution:
+    Condition: UseCloudFront
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Origins:
+        - DomainName: !Select ["1", !Split ["http://", !GetAtt [WebsiteBucket, WebsiteURL]]]
+          Id: !Ref BucketName
+          CustomOriginConfig:
+            OriginProtocolPolicy: http-only
+        Enabled: 'true'
+        DefaultCacheBehavior:
+          AllowedMethods:
+          - GET
+          - HEAD
+          - OPTIONS
+          TargetOriginId: !Ref BucketName
+          ForwardedValues:
+            QueryString: 'true'
+            Cookies:
+              Forward: all
+          ViewerProtocolPolicy: redirect-to-https
+
+Outputs:
+  WebsiteBucketName:
+    Value: !Ref WebsiteBucket
+  WebsiteBucketWebsiteURL:
+    Value: !GetAtt WebsiteBucket.WebsiteURL
