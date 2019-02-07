@@ -1,0 +1,5 @@
+type: single-page-application
+config:
+  parameters:
+    - ParameterKey: BucketName
+      ParameterValue: myrandombucketbyalois
