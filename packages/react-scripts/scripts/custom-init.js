@@ -14,13 +14,14 @@ const customInit = appPath => {
     'styled-components@4.1.3',
     'redux@4.0.1',
     'react-router@4.3.1',
-    'redux-saga@4.3.1',
+    'redux-saga@1.0.1',
   ];
   const customDevDependencies = [
     'prettier@1.16.4',
     'eslint-plugin-prettier@3.0.1',
     'pretty-quick@1.10.0',
     'husky@1.3.1',
+    'tailwindcss@0.7.4',
   ];
   execSync(`yarn add ${customDependencies.join(' ')}`, { stdio: 'inherit' });
   execSync(`yarn add -D ${customDevDependencies.join(' ')}`, {
@@ -35,6 +36,12 @@ const customInit = appPath => {
     hooks: {
       'pre-commit': 'pretty-quick --staged',
     },
+  };
+  package.scripts = {
+    ...package.scripts,
+    deploy: 'react-scripts deploy',
+    'deploy:infrastructure': 'react-scripts deploy-infrastructure',
+    destroy: 'react-scripts destroy',
   };
 
   fs.writeFileSync(
